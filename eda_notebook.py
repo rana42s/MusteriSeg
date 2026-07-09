@@ -172,18 +172,31 @@ print(df.skew().sort_values(ascending=False))
 # In[5]:
 
 
-# 1. Eksik Değerleri Medyan ile Doldurma
-df_clean = df.copy()
-df_clean['MINIMUM_PAYMENTS'] = df_clean['MINIMUM_PAYMENTS'].fillna(df_clean['MINIMUM_PAYMENTS'].median())
-df_clean['CREDIT_LIMIT'] = df_clean['CREDIT_LIMIT'].fillna(df_clean['CREDIT_LIMIT'].median())
+from sklearn.impute import SimpleImputer
 
-print("Eksik veri doldurma sonrası kontrol:")
-print(df_clean[['MINIMUM_PAYMENTS', 'CREDIT_LIMIT']].isnull().sum())
+# 1. Eksik verileri doldurmak için imputer nesnelerini tanımlıyoruz
+imputer = SimpleImputer(strategy='median')
+
+# 2. İmputasyon stratejisini uygulamadan önce veri kopyasını alıyoruz (Data Integrity için)
+df_clean = df.copy()
+
+# 3. Belirlenen kolonlar üzerinde imputasyon işlemini gerçekleştiriyoruz
+cols_to_impute = ['MINIMUM_PAYMENTS', 'CREDIT_LIMIT']
+df_clean[cols_to_impute] = imputer.fit_transform(df_clean[cols_to_impute])
+
+# 4. Doğrulama: Eksik veri kalmadığından emin oluyoruz
+print("İmputasyon sonrası doldurulan kolonlardaki eksik değer sayıları:")
+print(df_clean[cols_to_impute].isnull().sum())
+print("\nTüm veri setindeki toplam eksik veri sayısı:", df_clean.isnull().sum().sum())
+
+
+# In[6]:
+
 
 # 2. Logaritmik Dönüşüm (np.log1p)
 cols_to_log = ['BALANCE', 'PURCHASES', 'ONEOFF_PURCHASES', 'INSTALLMENTS_PURCHASES', 'CASH_ADVANCE', 'CREDIT_LIMIT', 'PAYMENTS', 'MINIMUM_PAYMENTS']
 
-print("\nDönüşüm Öncesi Çarpıklık (Skewness):")
+print("Dönüşüm Öncesi Çarpıklık (Skewness):")
 print(df_clean[cols_to_log].skew().sort_values(ascending=False))
 
 df_transformed = df_clean.copy()
@@ -220,4 +233,107 @@ plt.title('PURCHASES - Log Dönüşümlü Dağılım')
 plt.tight_layout()
 plt.show()
 
+
+# In[7]:
+
+
+from sklearn.impute import SimpleImputer
+
+# 1. Eksik verileri doldurmak için imputer nesnelerini tanımlıyoruz
+imputer = SimpleImputer(strategy='median')
+
+# 2. İmputasyon stratejisini uygulamadan önce veri kopyasını alıyoruz (Data Integrity için)
+df_clean = df.copy()
+
+# 3. Belirlenen kolonlar üzerinde imputasyon işlemini gerçekleştiriyoruz
+cols_to_impute = ['MINIMUM_PAYMENTS', 'CREDIT_LIMIT']
+df_clean[cols_to_impute] = imputer.fit_transform(df_clean[cols_to_impute])
+
+# 4. Doğrulama: Eksik veri kalmadığından emin oluyoruz
+print("İmputasyon sonrası doldurulan kolonlardaki eksik değer sayıları:")
+print(df_clean[cols_to_impute].isnull().sum())
+print("\nTüm veri setindeki toplam eksik veri sayısı:", df_clean.isnull().sum().sum())
+
+
+# In[8]:
+
+
+import numpy as np
+
+# 1. log(x + 1) dönüşümü uygulanacak yüksek çarpıklığa sahip finansal kolonlar
+skewed_features = [
+    'BALANCE', 'PURCHASES', 'ONEOFF_PURCHASES', 'INSTALLMENTS_PURCHASES', 
+    'CASH_ADVANCE', 'PAYMENTS', 'MINIMUM_PAYMENTS'
+]
+
+# 2. X'i, eksik verileri doldurduğumuz df_clean'den kopya alarak tanımlıyoruz
+X = df_clean.copy()
+
+# 3. Dağılımları normalleştirmek için log(x + 1) dönüşümünü uyguluyoruz
+for col in skewed_features:
+    X[col] = np.log1p(X[col])
+
+print("Dönüşüm sonrası çarpıklık değerleri:\n", X[skewed_features].skew())
+
+
+# ### 🏗️ Kurumsal Mimari: End-to-End Veri Ön İşleme Hattı (Pipeline Tasarımı)
+# 
+# Production (canlı sistemler) ortamında, yeni ve işlenmemiş müşteri verileri sisteme girdiğinde tüm ön işleme adımlarının tek bir satır kodla güvenli bir şekilde yapılabilmesi için Scikit-Learn `Pipeline` ve `ColumnTransformer` mimarisini tasarlıyoruz.
+# 
+# #### Pipeline Hiyerarşisi ve Akış:
+# 1. **İmputasyon (Imputation):** Tüm sayısal özelliklerdeki eksik değerler `SimpleImputer(strategy='median')` ile doldurulur.
+# 2. **Seçici Dağılım Dönüşümü (Selective Log Transformation):** Sadece yüksek çarpıklığa sahip finansal değişkenlere (`BALANCE`, `PURCHASES` vb.) `log(x+1)` uygulanır; frekans ve vade değişkenleri olduğu gibi (`passthrough`) bırakılır. Bu ayrım `ColumnTransformer` ile yönetilir.
+# 3. **Standartlaştırma (Standardization):** Tüm özellikler `StandardScaler` yardımıyla Z-Score standardizasyonuna tabi tutulur.
+# 4. **Boyut İndirgeme (PCA):** Yüksek korelasyonlu ve çoklu doğrusallık yaratan değişkenleri çözmek ve veri setini sıkıştırmak için varyansın `%85`'ini açıklayan `7` temel bileşene (`n_components=7`) boyut indirgeme uygulanır.
+
+# In[9]:
+
+
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import FunctionTransformer, StandardScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.decomposition import PCA
+import numpy as np
+import pandas as pd
+
+# 1. Ham veri setini sıfırdan yüklüyoruz
+raw_df = pd.read_csv("Customer_Data.csv").set_index('CUST_ID')
+
+# 2. Log dönüşümü yapılacak ve yapılmayacak kolonları belirliyoruz
+cols_to_log = [
+    'BALANCE', 'PURCHASES', 'ONEOFF_PURCHASES', 'INSTALLMENTS_PURCHASES', 
+    'CASH_ADVANCE', 'CREDIT_LIMIT', 'PAYMENTS', 'MINIMUM_PAYMENTS'
+]
+cols_other = [col for col in raw_df.columns if col not in cols_to_log]
+
+# 3. Alt pipeline bileşenlerini kuruyoruz
+log_pipeline = Pipeline([
+    ('imputer', SimpleImputer(strategy='median')),
+    ('log', FunctionTransformer(np.log1p, validate=False))
+])
+
+other_pipeline = Pipeline([
+    ('imputer', SimpleImputer(strategy='median'))
+])
+
+col_transformer = ColumnTransformer(
+    transformers=[
+        ('log_path', log_pipeline, cols_to_log),
+        ('other_path', other_pipeline, cols_other)
+    ]
+)
+
+# 4. Ana Preprocessing Pipeline hiyerarşisini kuruyoruz
+preprocessing_pipeline = Pipeline([
+    ('features', col_transformer),
+    ('scaler', StandardScaler()),
+    ('pca', PCA(n_components=7, random_state=42))
+])
+
+# 5. Ham veri setini sıfırdan pipeline'a sokuyoruz
+X_final_prepared = preprocessing_pipeline.fit_transform(raw_df)
+
+print("Pipeline çıktısının boyutu (Hazır veri):", X_final_prepared.shape)
+print("Açıklanan toplam varyans oranı:", np.sum(preprocessing_pipeline.named_steps['pca'].explained_variance_ratio_))
 
