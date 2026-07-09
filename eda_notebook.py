@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[10]:
 
 
 import pandas as pd
@@ -22,14 +22,14 @@ print("\n--- İstatistiksel Özet (Metriklerin Sınırları) ---")
 display(df.describe().T)
 
 
-# In[2]:
+# In[11]:
 
 
 df.set_index('CUST_ID', inplace=True)
 print(df.head()) # Kontrol et, CUST_ID artık bir kolon değil, index.
 
 
-# In[3]:
+# In[12]:
 
 
 import matplotlib.pyplot as plt
@@ -88,7 +88,7 @@ plt.show()
 #   * Dağılım, çok az sayıda yüksek hacimli alışveriş yapan "süper kullanıcı" olduğunu göstermektedir. Bu uç değerler kümeleme algoritmalarını (örneğin K-Means) olumsuz etkileyebileceği için modelleme aşamasında log dönüşümü veya kırpma (clipping) gibi yöntemler değerlendirilmelidir.
 # 
 
-# In[4]:
+# In[13]:
 
 
 # 1. Korelasyon Matrisi (Isı Haritası)
@@ -169,7 +169,7 @@ print(df.skew().sort_values(ascending=False))
 # 
 # Aşağıdaki kod hücresinde bu işlemlerin öncesi ve sonrası çarpıklık dereceleri ile histogram grafikleri karşılaştırmalı olarak çizilmiştir.
 
-# In[5]:
+# In[14]:
 
 
 from sklearn.impute import SimpleImputer
@@ -190,7 +190,7 @@ print(df_clean[cols_to_impute].isnull().sum())
 print("\nTüm veri setindeki toplam eksik veri sayısı:", df_clean.isnull().sum().sum())
 
 
-# In[6]:
+# In[15]:
 
 
 # 2. Logaritmik Dönüşüm (np.log1p)
@@ -234,7 +234,7 @@ plt.tight_layout()
 plt.show()
 
 
-# In[7]:
+# In[16]:
 
 
 from sklearn.impute import SimpleImputer
@@ -255,38 +255,72 @@ print(df_clean[cols_to_impute].isnull().sum())
 print("\nTüm veri setindeki toplam eksik veri sayısı:", df_clean.isnull().sum().sum())
 
 
-# In[8]:
+# In[20]:
 
 
 import numpy as np
 
-# 1. log(x + 1) dönüşümü uygulanacak yüksek çarpıklığa sahip finansal kolonlar
+# Hatanın çözümü için X değişkenini df_clean kopyası olarak tanımlıyoruz
+X = df_clean.copy()
+
+# Log dönüşümü uygulanacak yüksek çarpıklığa sahip finansal kolonlar
 skewed_features = [
     'BALANCE', 'PURCHASES', 'ONEOFF_PURCHASES', 'INSTALLMENTS_PURCHASES', 
     'CASH_ADVANCE', 'PAYMENTS', 'MINIMUM_PAYMENTS'
 ]
 
-# 2. X'i, eksik verileri doldurduğumuz df_clean'den kopya alarak tanımlıyoruz
-X = df_clean.copy()
-
-# 3. Dağılımları normalleştirmek için log(x + 1) dönüşümünü uyguluyoruz
+# Dağılımları normalleştirmek için log(x + 1) dönüşümünü uyguluyoruz
 for col in skewed_features:
     X[col] = np.log1p(X[col])
 
 print("Dönüşüm sonrası çarpıklık değerleri:\n", X[skewed_features].skew())
 
 
-# ### 🏗️ Kurumsal Mimari: End-to-End Veri Ön İşleme Hattı (Pipeline Tasarımı)
-# 
-# Production (canlı sistemler) ortamında, yeni ve işlenmemiş müşteri verileri sisteme girdiğinde tüm ön işleme adımlarının tek bir satır kodla güvenli bir şekilde yapılabilmesi için Scikit-Learn `Pipeline` ve `ColumnTransformer` mimarisini tasarlıyoruz.
-# 
-# #### Pipeline Hiyerarşisi ve Akış:
-# 1. **İmputasyon (Imputation):** Tüm sayısal özelliklerdeki eksik değerler `SimpleImputer(strategy='median')` ile doldurulur.
-# 2. **Seçici Dağılım Dönüşümü (Selective Log Transformation):** Sadece yüksek çarpıklığa sahip finansal değişkenlere (`BALANCE`, `PURCHASES` vb.) `log(x+1)` uygulanır; frekans ve vade değişkenleri olduğu gibi (`passthrough`) bırakılır. Bu ayrım `ColumnTransformer` ile yönetilir.
-# 3. **Standartlaştırma (Standardization):** Tüm özellikler `StandardScaler` yardımıyla Z-Score standardizasyonuna tabi tutulur.
-# 4. **Boyut İndirgeme (PCA):** Yüksek korelasyonlu ve çoklu doğrusallık yaratan değişkenleri çözmek ve veri setini sıkıştırmak için varyansın `%85`'ini açıklayan `7` temel bileşene (`n_components=7`) boyut indirgeme uygulanır.
+# In[21]:
 
-# In[9]:
+
+from sklearn.preprocessing import StandardScaler
+
+scaler = StandardScaler()
+
+# Tüm sayısal özellikleri aynı ölçek düzlemine getiriyoruz
+X_scaled = scaler.fit_transform(X)
+
+# Kontrol: Tüm kolonların ortalamasının ~0, standart sapmasının ~1 olması gerekir
+print("Ortalamalar:", np.mean(X_scaled, axis=0))
+print("Standart Sapmalar:", np.std(X_scaled, axis=0))
+
+
+# In[22]:
+
+
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+
+# Önce maksimum bileşen sayısı ile PCA'i başlatıyoruz
+pca = PCA(random_state=42)
+pca.fit(X_scaled)
+
+# Kümülatif varyans açıklama oranını hesaplıyoruz
+cumulative_variance = np.cumsum(pca.explained_variance_ratio_)
+
+# Dirsek noktasını bulmak için grafik çiziyoruz
+plt.figure(figsize=(8, 5))
+plt.plot(range(1, len(cumulative_variance) + 1), cumulative_variance, marker='o', linestyle='--')
+plt.axhline(y=0.85, color='r', linestyle=':', label='%85 Varyans Eşiği')
+plt.xlabel('Bileşen Sayısı (Principal Components)')
+plt.ylabel('Açıklanan Kümülatif Varyans (Explained Variance)')
+plt.title('PCA Varyans Analizi Grafiği')
+plt.legend()
+plt.grid()
+plt.show()
+
+# %80 veya %85 varyansı açıklayan optimum bileşen sayısını seçiyoruz
+optimum_components = np.where(cumulative_variance >= 0.85)[0][0] + 1
+print(f"Verideki varyansın %85'ini açıklayan optimum bileşen sayısı: {optimum_components}")
+
+
+# In[26]:
 
 
 from sklearn.pipeline import Pipeline
@@ -298,6 +332,7 @@ import numpy as np
 import pandas as pd
 
 # 1. Ham veri setini sıfırdan yüklüyoruz
+# (Sizin projenizdeki gerçek veri dosyası olan "Customer_Data.csv" kullanıldı)
 raw_df = pd.read_csv("Customer_Data.csv").set_index('CUST_ID')
 
 # 2. Log dönüşümü yapılacak ve yapılmayacak kolonları belirliyoruz
@@ -307,7 +342,7 @@ cols_to_log = [
 ]
 cols_other = [col for col in raw_df.columns if col not in cols_to_log]
 
-# 3. Alt pipeline bileşenlerini kuruyoruz
+# 3. Alt pipeline bileşenlerini kuruyoruz (İmputasyon + Seçici Log Dönüşümü)
 log_pipeline = Pipeline([
     ('imputer', SimpleImputer(strategy='median')),
     ('log', FunctionTransformer(np.log1p, validate=False))
@@ -328,7 +363,7 @@ col_transformer = ColumnTransformer(
 preprocessing_pipeline = Pipeline([
     ('features', col_transformer),
     ('scaler', StandardScaler()),
-    ('pca', PCA(n_components=7, random_state=42))
+    ('pca', PCA(n_components=8, random_state=42))
 ])
 
 # 5. Ham veri setini sıfırdan pipeline'a sokuyoruz
