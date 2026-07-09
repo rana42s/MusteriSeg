@@ -169,28 +169,55 @@ print(df.skew().sort_values(ascending=False))
 # 
 # Aşağıdaki kod hücresinde bu işlemlerin öncesi ve sonrası çarpıklık dereceleri ile histogram grafikleri karşılaştırmalı olarak çizilmiştir.
 
-# In[ ]:
+# In[5]:
 
 
-### 🛠️ Veri Ön İşleme (Data Preprocessing): Eksik Veri Doldurma ve Logaritmik Dönüşüm
+# 1. Eksik Değerleri Medyan ile Doldurma
+df_clean = df.copy()
+df_clean['MINIMUM_PAYMENTS'] = df_clean['MINIMUM_PAYMENTS'].fillna(df_clean['MINIMUM_PAYMENTS'].median())
+df_clean['CREDIT_LIMIT'] = df_clean['CREDIT_LIMIT'].fillna(df_clean['CREDIT_LIMIT'].median())
 
-Bu adımda, önceki hücrelerde yaptığımız dağılım ve çarpıklık (skewness) analizleri doğrultusunda verilerimizi modellemeye hazırlıyoruz:
+print("Eksik veri doldurma sonrası kontrol:")
+print(df_clean[['MINIMUM_PAYMENTS', 'CREDIT_LIMIT']].isnull().sum())
 
----
+# 2. Logaritmik Dönüşüm (np.log1p)
+cols_to_log = ['BALANCE', 'PURCHASES', 'ONEOFF_PURCHASES', 'INSTALLMENTS_PURCHASES', 'CASH_ADVANCE', 'CREDIT_LIMIT', 'PAYMENTS', 'MINIMUM_PAYMENTS']
 
-#### 1. Eksik Veri İmputasyonu (Data Imputation)
-* **`MINIMUM_PAYMENTS` (313 eksik değer):** Bu kolonun dağılımı aşırı derecede sağa çarpık (`~13.85`) olduğundan, eksik verileri ortalama (mean) yerine **medyan (median)** değeri ile dolduruyoruz. Ortalama kullanımı, uç değerlerin etkisiyle veriyi yapay olarak yukarı çekebilirdi.
-* **`CREDIT_LIMIT` (1 eksik değer):** Benzer şekilde bu kolondaki tek eksik değeri de **medyan** değeriyle doldurarak veri bütünlüğünü sağlıyoruz.
+print("\nDönüşüm Öncesi Çarpıklık (Skewness):")
+print(df_clean[cols_to_log].skew().sort_values(ascending=False))
 
----
+df_transformed = df_clean.copy()
+for col in cols_to_log:
+    df_transformed[col] = np.log1p(df_transformed[col])
 
-#### 2. Matematiksel Dönüşümler (Log Transformation)
-* **Neden Log Dönüşümü Yapıyoruz?**
-  * K-Means ve PCA gibi algoritmalar, özelliklerin dağılımının dengeli ve simetrik olmasını bekler. Aşırı sağa çarpık finansal değişkenler, mesafe bazlı uzaklık hesaplamalarında baskınlık kurarak kümeleme başarısını olumsuz etkiler.
-* **Hangi Kolonlara Uyguluyoruz?**
-  * Çarpıklık derecesi yüksek olan tüm harcama ve bakiye kolonlarına: `BALANCE`, `PURCHASES`, `ONEOFF_PURCHASES`, `INSTALLMENTS_PURCHASES`, `CASH_ADVANCE`, `CREDIT_LIMIT`, `PAYMENTS`, `MINIMUM_PAYMENTS`.
-* **Kullanılan Yöntem:**
-  * **$log(x+1)$** (kodda `np.log1p`): Müşterilerimizin bazı kolonlarda (örneğin nakit avans veya tek seferlik alışveriş tutarı) sıfır (`0`) harcamaları bulunmaktadır. Doğrudan logaritma almak tanımsızlık yaratacağından, $log(x+1)$ kullanarak sıfır değerleri koruyor ve tüm pozitif değerleri başarıyla normalize ediyoruz.
+print("\nDönüşüm Sonrası Çarpıklık (Skewness):")
+print(df_transformed[cols_to_log].skew().sort_values(ascending=False))
 
-Aşağıdaki kod hücresinde bu işlemlerin öncesi ve sonrası çarpıklık dereceleri ile histogram grafikleri karşılaştırmalı olarak çizilmiştir.
+# 3. Görsel Karşılaştırma (Orijinal vs Log Dönüştürülmüş)
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+plt.figure(figsize=(15, 10))
+
+# BALANCE Karşılaştırma
+plt.subplot(2, 2, 1)
+sns.histplot(df_clean['BALANCE'], kde=True, bins=30, color='blue')
+plt.title('BALANCE - Orijinal Dağılım')
+
+plt.subplot(2, 2, 2)
+sns.histplot(df_transformed['BALANCE'], kde=True, bins=30, color='green')
+plt.title('BALANCE - Log Dönüşümlü Dağılım')
+
+# PURCHASES Karşılaştırma
+plt.subplot(2, 2, 3)
+sns.histplot(df_clean['PURCHASES'], kde=True, bins=30, color='blue')
+plt.title('PURCHASES - Orijinal Dağılım')
+
+plt.subplot(2, 2, 4)
+sns.histplot(df_transformed['PURCHASES'], kde=True, bins=30, color='green')
+plt.title('PURCHASES - Log Dönüşümlü Dağılım')
+
+plt.tight_layout()
+plt.show()
+
 
