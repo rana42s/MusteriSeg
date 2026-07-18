@@ -1,1 +1,4 @@
-/host.txt
+.ipynb_checkpoints/
+__pycache__/
+*.pkl
+*.csv
