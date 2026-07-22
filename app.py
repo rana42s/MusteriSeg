@@ -15,8 +15,8 @@ st.markdown("Bu panel, müşteri finansal hareketlerini analiz ederek yapay zeka
 st.markdown("---")
 
 # 2. API Adresleri (FastAPI sunucumuzun adresleri)
-API_URL_SINGLE = "http://127.0.0.1:8000/predict"
-API_URL_BATCH = "http://127.0.0.1:8000/predict_batch"
+API_URL_SINGLE = "https://musteriseg.onrender.com"
+API_URL_BATCH = "https://musteriseg.onrender.com"
 
 # SAYFAYI İKİ SEKMEYE (TAB) BÖLÜYORUZ
 tab1, tab2 = st.tabs(["👤 Tekil Müşteri Analizi", "📁 Toplu Müşteri Analizi (CSV Yükleme)"])
