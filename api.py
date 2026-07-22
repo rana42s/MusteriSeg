@@ -7,6 +7,7 @@ from pydantic import BaseModel
 import pandas as pd
 import joblib
 import io
+import json
 
 # 1. API Uygulamasını Başlatıyoruz
 app = FastAPI(
@@ -86,12 +87,11 @@ async def predict_batch(file: UploadFile = File(...)):
             df_features = df.copy()
             
         # 4. Pipeline ve K-Means İşlemleri
-        # artifacts değişkeni daha önce joblib ile yüklediğimiz sözlüktür (pipeline ve kmeans içerir)
-        X_scaled = artifacts["pipeline"].transform(df_features)
-        clusters = artifacts["kmeans"].predict(X_scaled)
+        X_scaled = preprocessing_pipeline.transform(df_features)
+        clusters = kmeans_model.predict(X_scaled)
         
         # 5. Sonuçları orijinal veri setine kolon olarak ekleme
-        df["CLUSTER_ID"] = int(clusters) # Numpy int tipinden standart Python int tipine çevirme
+        df["CLUSTER_ID"] = clusters
         
         # 6. Müşteri profillerini (Persona) atama
         persona_map = {
@@ -103,7 +103,9 @@ async def predict_batch(file: UploadFile = File(...)):
         df["PERSONA"] = df["CLUSTER_ID"].map(persona_map)
         
         # 7. Streamlit'in doğrudan okuyabileceği "records" formatında JSON döndürme
-        return {"data": df.to_dict(orient="records")}
+        # df.to_dict() yerine pandas'ın daha güvenli olan kendi JSON dönüştürücüsünü kullanıyoruz:
+        parsed_data = json.loads(df.to_json(orient="records"))
+        return {"data": parsed_data}
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Veri işlenirken bir hata oluştu: {str(e)}")
