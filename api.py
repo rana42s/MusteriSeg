@@ -2,6 +2,11 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 import joblib
 import pandas as pd
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from pydantic import BaseModel
+import pandas as pd
+import joblib
+import io
 
 # 1. API Uygulamasını Başlatıyoruz
 app = FastAPI(
@@ -60,3 +65,45 @@ def predict_segment(data: CustomerData):
         "persona": personas.get(int(cluster_id), "Bilinmeyen Profil"),
         "status": "success"
     }
+
+# 5. Batch Tahmin Yapan Endpoint'i Kodluyoruz - Tekil Tahminin Aksine, CSV Dosyası ile Çoklu Tahmin
+@app.post("/predict_batch")
+async def predict_batch(file: UploadFile = File(...)):
+    # 1. Dosya uzantısı kontrolü
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Hatalı format. Lütfen sadece CSV dosyası yükleyin.")
+    
+    try:
+        # 2. Dosyayı hafızaya okuma (Fiziksel kayıt yapmadan)
+        contents = await file.read()
+        df = pd.read_csv(io.BytesIO(contents))
+        
+        # 3. Modele girecek veriyi hazırlama
+        # (Eğer veride CUST_ID varsa model hata verebilir, onu geçici olarak ayırıyoruz)
+        if "CUST_ID" in df.columns:
+            df_features = df.drop("CUST_ID", axis=1)
+        else:
+            df_features = df.copy()
+            
+        # 4. Pipeline ve K-Means İşlemleri
+        # artifacts değişkeni daha önce joblib ile yüklediğimiz sözlüktür (pipeline ve kmeans içerir)
+        X_scaled = artifacts["pipeline"].transform(df_features)
+        clusters = artifacts["kmeans"].predict(X_scaled)
+        
+        # 5. Sonuçları orijinal veri setine kolon olarak ekleme
+        df["CLUSTER_ID"] = int(clusters) # Numpy int tipinden standart Python int tipine çevirme
+        
+        # 6. Müşteri profillerini (Persona) atama
+        persona_map = {
+            0: "Premium / Elit Harcamacılar",
+            1: "İnaktif / Pasif Müşteriler",
+            2: "Bütçe Odaklı Taksit Severler",
+            3: "Nakit Avans Bağımlıları"
+        }
+        df["PERSONA"] = df["CLUSTER_ID"].map(persona_map)
+        
+        # 7. Streamlit'in doğrudan okuyabileceği "records" formatında JSON döndürme
+        return {"data": df.to_dict(orient="records")}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Veri işlenirken bir hata oluştu: {str(e)}")
