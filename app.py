@@ -124,27 +124,27 @@ with tab1:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            balance = st.number_input("Bakiye (BALANCE)", min_value=0.0, value=st.session_state["balance"], step=100.0, key="balance", help="Müşterinin hesabında bulunan mevcut bakiye.")
-            balance_freq = st.number_input("Bakiye Güncelleme Sıklığı", value=st.session_state["balance_freq"], step=0.1, key="balance_freq", help="0 ile 1 arasında bir değer (Örn: 1.0 = Sık güncelleniyor)")
-            purchases = st.number_input("Toplam Harcama (PURCHASES)", min_value=0.0, value=st.session_state["purchases"], step=100.0, key="purchases")
-            oneoff = st.number_input("Tek Çekim Harcama (ONEOFF)", min_value=0.0, value=st.session_state["oneoff"], step=100.0, key="oneoff")
-            installments = st.number_input("Taksitli Harcama (INSTALLMENTS)", min_value=0.0, value=st.session_state["installments"], step=100.0, key="installments")
-            cash_advance = st.number_input("Nakit Avans (CASH_ADVANCE)", min_value=0.0, value=st.session_state["cash_advance"], step=100.0, key="cash_advance")
+            balance = st.number_input("Bakiye (BALANCE)", min_value=0.0, value=st.session_state["balance"], step=100.0, key="balance", help="Müşterinin hesabında bulunan mevcut kredi kartı borç bakiyesi.")
+            balance_freq = st.number_input("Bakiye Güncelleme Sıklığı", min_value=0.0, max_value=1.0, value=st.session_state["balance_freq"], step=0.1, key="balance_freq", help="0 ile 1 arasında bir değer. Bakiyenin ne sıklıkla güncellendiğini gösterir (1.0 = Sürekli güncelleniyor).")
+            purchases = st.number_input("Toplam Harcama (PURCHASES)", min_value=0.0, value=st.session_state["purchases"], step=100.0, key="purchases", help="Hesaptan yapılan toplam alışveriş tutarı (Tek çekim + Taksitli).")
+            oneoff = st.number_input("Tek Çekim Harcama (ONEOFF)", min_value=0.0, value=st.session_state["oneoff"], step=100.0, key="oneoff", help="Taksitlendirilmeden tek seferde peşin yapılan alışverişlerin toplam tutarı.")
+            installments = st.number_input("Taksitli Harcama (INSTALLMENTS)", min_value=0.0, value=st.session_state["installments"], step=100.0, key="installments", help="Taksitli olarak yapılan alışverişlerin toplam tutarı.")
+            cash_advance = st.number_input("Nakit Avans (CASH_ADVANCE)", min_value=0.0, value=st.session_state["cash_advance"], step=100.0, key="cash_advance", help="Kredi kartından çekilen nakit avansın (nakit paranın) toplam tutarı.")
             
         with col2:
-            purchases_freq = st.number_input("Harcama Sıklığı", value=st.session_state["purchases_freq"], step=0.1, key="purchases_freq")
-            oneoff_freq = st.number_input("Tek Çekim Sıklığı", value=st.session_state["oneoff_freq"], step=0.1, key="oneoff_freq")
-            installments_freq = st.number_input("Taksit Sıklığı", value=st.session_state["installments_freq"], step=0.1, key="installments_freq")
-            cash_freq = st.number_input("Nakit Avans Sıklığı", value=st.session_state["cash_freq"], step=0.1, key="cash_freq")
-            cash_trx = st.number_input("Nakit Avans İşlem Adedi", min_value=0, value=st.session_state["cash_trx"], step=1, key="cash_trx")
-            purchases_trx = st.number_input("Alışveriş İşlem Adedi", min_value=0, value=st.session_state["purchases_trx"], step=1, key="purchases_trx")
+            purchases_freq = st.number_input("Harcama Sıklığı", min_value=0.0, max_value=1.0, value=st.session_state["purchases_freq"], step=0.1, key="purchases_freq", help="0 ile 1 arasında bir değer. Müşterinin ne sıklıkla alışveriş yaptığını gösterir (1.0 = Çok sık).")
+            oneoff_freq = st.number_input("Tek Çekim Sıklığı", min_value=0.0, max_value=1.0, value=st.session_state["oneoff_freq"], step=0.1, key="oneoff_freq", help="0 ile 1 arasında bir değer. Tek çekim (peşin) alışveriş yapma sıklığını gösterir.")
+            installments_freq = st.number_input("Taksit Sıklığı", min_value=0.0, max_value=1.0, value=st.session_state["installments_freq"], step=0.1, key="installments_freq", help="0 ile 1 arasında bir değer. Taksitli alışveriş yapma sıklığını gösterir.")
+            cash_freq = st.number_input("Nakit Avans Sıklığı", min_value=0.0, max_value=1.0, value=st.session_state["cash_freq"], step=0.1, key="cash_freq", help="0 ile 1 arasında bir değer. Nakit avans çekme sıklığını gösterir.")
+            cash_trx = st.number_input("Nakit Avans İşlem Adedi", min_value=0, value=st.session_state["cash_trx"], step=1, key="cash_trx", help="Dönem içinde nakit avans çekim işleminin kaç kez (adet) yapıldığını ifade eder.")
+            purchases_trx = st.number_input("Alışveriş İşlem Adedi", min_value=0, value=st.session_state["purchases_trx"], step=1, key="purchases_trx", help="Kredi kartıyla yapılan toplam alışveriş işlemi adedidir.")
             
         with col3:
-            credit_limit = st.number_input("Kredi Limiti (CREDIT_LIMIT)", min_value=0.0, value=st.session_state["credit_limit"], step=1000.0, key="credit_limit")
-            payments = st.number_input("Yapılan Ödemeler (PAYMENTS)", min_value=0.0, value=st.session_state["payments"], step=100.0, key="payments")
-            min_payments = st.number_input("Asgari Ödeme (MIN_PAYMENTS)", min_value=0.0, value=st.session_state["min_payments"], step=100.0, key="min_payments")
-            prc_full_payment = st.number_input("Borcun Tamamını Ödeme Oranı", value=st.session_state["prc_full_payment"], step=0.1, key="prc_full_payment")
-            tenure = st.number_input("Müşteri Yaşı (Ay)", min_value=6, max_value=12, value=st.session_state["tenure"], step=1, key="tenure")
+            credit_limit = st.number_input("Kredi Limiti (CREDIT_LIMIT)", min_value=0.0, value=st.session_state["credit_limit"], step=1000.0, key="credit_limit", help="Müşterinin kredi kartına banka tarafından tahsis edilen maksimum harcama limiti.")
+            payments = st.number_input("Yapılan Ödemeler (PAYMENTS)", min_value=0.0, value=st.session_state["payments"], step=100.0, key="payments", help="Müşterinin dönem içinde kredi kartına yaptığı toplam ödeme tutarı.")
+            min_payments = st.number_input("Asgari Ödeme (MIN_PAYMENTS)", min_value=0.0, value=st.session_state["min_payments"], step=100.0, key="min_payments", help="Son ödeme tarihine kadar ödenmesi gereken asgari (minimum) borç tutarı.")
+            prc_full_payment = st.number_input("Borcun Tamamını Ödeme Oranı", min_value=0.0, max_value=1.0, value=st.session_state["prc_full_payment"], step=0.1, key="prc_full_payment", help="0 ile 1 arasında bir değer. Ekstre borcunun tamamını ödeme oranını ifade eder (1.0 = Borcun tamamı ödendi).")
+            tenure = st.number_input("Müşteri Yaşı (Ay)", min_value=6, value=st.session_state["tenure"], step=1, key="tenure", help="Müşterinin banka veya kredi kartı ile olan çalışma süresi (ay cinsinden).")
 
         submit_button = st.form_submit_button(label="🚀 Müşteriyi Analiz Et")
 
